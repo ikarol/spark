@@ -20,8 +20,10 @@ package org.apache.spark.sql.jdbc
 import java.sql.{Connection, DatabaseMetaData, Date, Timestamp}
 import java.time.{Instant, LocalDate}
 import java.util
-import scala.collection.mutable.ArrayBuilder
+
 import org.apache.commons.lang3.StringUtils
+import scala.collection.mutable.ArrayBuilder
+
 import org.apache.spark.annotation.{DeveloperApi, Since}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.AnalysisException

@@ -17,9 +17,9 @@
 
 package org.apache.spark.sql.jdbc
 
-import org.apache.spark.sql.types.{DataType, MetadataBuilder}
-
 import java.sql.DatabaseMetaData
+
+import org.apache.spark.sql.types.{DataType, MetadataBuilder}
 
 /**
  * AggregatedDialect can unify multiple dialects into one virtual Dialect.

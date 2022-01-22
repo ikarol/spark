@@ -17,10 +17,10 @@
 
 package org.apache.spark.sql.jdbc
 
+import java.sql.DatabaseMetaData
 import java.util.Locale
 
 import org.apache.spark.sql.types._
-import java.sql.DatabaseMetaData
 
 private case object TeradataDialect extends JdbcDialect {
 
