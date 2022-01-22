@@ -17,14 +17,11 @@
 
 package org.apache.spark.sql.jdbc
 
-import java.sql.{Connection, Date, Timestamp}
+import java.sql.{Connection, DatabaseMetaData, Date, Timestamp}
 import java.time.{Instant, LocalDate}
 import java.util
-
 import scala.collection.mutable.ArrayBuilder
-
 import org.apache.commons.lang3.StringUtils
-
 import org.apache.spark.annotation.{DeveloperApi, Since}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.AnalysisException
@@ -135,10 +132,11 @@ abstract class JdbcDialect extends Serializable with Logging{
    * return a query that is suitable for a particular database. For PostgreSQL, for instance,
    * a different query is used to prevent "TRUNCATE" affecting other tables.
    * @param table The table to truncate
+   * @param metadata Database connection metadata to potentially tweak the truncation statement
    * @return The SQL query to use for truncating a table
    */
   @Since("2.3.0")
-  def getTruncateQuery(table: String): String = {
+  def getTruncateQuery(table: String)(implicit metadata: DatabaseMetaData): String = {
     getTruncateQuery(table, isCascadingTruncateTable)
   }
 
@@ -148,12 +146,14 @@ abstract class JdbcDialect extends Serializable with Logging{
    * a different query is used to prevent "TRUNCATE" affecting other tables.
    * @param table The table to truncate
    * @param cascade Whether or not to cascade the truncation
+   * @param metadata Database connection metadata to potentially tweak the truncation statement
    * @return The SQL query to use for truncating a table
    */
   @Since("2.4.0")
   def getTruncateQuery(
     table: String,
-    cascade: Option[Boolean] = isCascadingTruncateTable): String = {
+    cascade: Option[Boolean] = isCascadingTruncateTable)
+                      (implicit metadata: DatabaseMetaData): String = {
       s"TRUNCATE TABLE $table"
   }
 

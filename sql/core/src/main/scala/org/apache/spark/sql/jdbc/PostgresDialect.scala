@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql.jdbc
 
-import java.sql.{Connection, SQLException, Types}
+import java.sql.{Connection, DatabaseMetaData, SQLException, Types}
 import java.util
 import java.util.Locale
 
@@ -123,7 +123,8 @@ private object PostgresDialect extends JdbcDialect with SQLConfHelper {
    */
   override def getTruncateQuery(
       table: String,
-      cascade: Option[Boolean] = isCascadingTruncateTable): String = {
+      cascade: Option[Boolean] = isCascadingTruncateTable)
+                               (implicit metadata: DatabaseMetaData): String = {
     cascade match {
       case Some(true) => s"TRUNCATE TABLE ONLY $table CASCADE"
       case _ => s"TRUNCATE TABLE ONLY $table"

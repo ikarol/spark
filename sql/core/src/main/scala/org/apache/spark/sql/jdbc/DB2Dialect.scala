@@ -17,8 +17,11 @@
 
 package org.apache.spark.sql.jdbc
 
+import java.sql.DatabaseMetaData
 import java.sql.Types
 import java.util.Locale
+
+import org.apache.hadoop.util.ComparableVersion
 
 import org.apache.spark.sql.types._
 
@@ -48,6 +51,14 @@ private object DB2Dialect extends JdbcDialect {
     case BooleanType => Option(JdbcType("CHAR(1)", java.sql.Types.CHAR))
     case ShortType | ByteType => Some(JdbcType("SMALLINT", java.sql.Types.SMALLINT))
     case _ => None
+  }
+
+  override def getTruncateQuery(table: String)(implicit metadata: DatabaseMetaData): String = {
+    val dbVersion = new ComparableVersion(metadata.getDatabaseProductVersion)
+    if (dbVersion.compareTo(new ComparableVersion("9.7")) >= 0) {
+      return s"TRUNCATE TABLE $table IMMEDIATE"
+    }
+    super.getTruncateQuery(table)
   }
 
   override def isCascadingTruncateTable(): Option[Boolean] = Some(false)

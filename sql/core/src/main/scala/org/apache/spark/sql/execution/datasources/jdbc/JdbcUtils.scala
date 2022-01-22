@@ -108,6 +108,7 @@ object JdbcUtils extends Logging with SQLConfHelper {
     val statement = conn.createStatement
     try {
       statement.setQueryTimeout(options.queryTimeout)
+      implicit val metadata = conn.getMetaData
       val truncateQuery = if (options.isCascadeTruncate.isDefined) {
         dialect.getTruncateQuery(options.table, options.isCascadeTruncate)
       } else {

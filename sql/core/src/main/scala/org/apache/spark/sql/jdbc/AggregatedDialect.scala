@@ -19,6 +19,8 @@ package org.apache.spark.sql.jdbc
 
 import org.apache.spark.sql.types.{DataType, MetadataBuilder}
 
+import java.sql.DatabaseMetaData
+
 /**
  * AggregatedDialect can unify multiple dialects into one virtual Dialect.
  * Dialects are tried in order, and the first dialect that does not return a
@@ -73,7 +75,8 @@ private class AggregatedDialect(dialects: List[JdbcDialect]) extends JdbcDialect
    */
   override def getTruncateQuery(
       table: String,
-      cascade: Option[Boolean] = isCascadingTruncateTable): String = {
+      cascade: Option[Boolean] = isCascadingTruncateTable)
+                               (implicit metadata: DatabaseMetaData): String = {
     dialects.head.getTruncateQuery(table, cascade)
   }
 }
