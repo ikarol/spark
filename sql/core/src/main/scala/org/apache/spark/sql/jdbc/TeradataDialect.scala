@@ -22,17 +22,17 @@ import java.util.Locale
 import org.apache.spark.sql.types._
 import java.sql.DatabaseMetaData
 
-
 private case object TeradataDialect extends JdbcDialect {
 
   override def canHandle(url: String): Boolean =
     url.toLowerCase(Locale.ROOT).startsWith("jdbc:teradata")
 
-  override def getJDBCType(dt: DataType): Option[JdbcType] = dt match {
-    case StringType => Some(JdbcType("VARCHAR(255)", java.sql.Types.VARCHAR))
-    case BooleanType => Option(JdbcType("CHAR(1)", java.sql.Types.CHAR))
-    case _ => None
-  }
+  override def getJDBCType(dt: DataType): Option[JdbcType] =
+    dt match {
+      case StringType => Some(JdbcType("VARCHAR(255)", java.sql.Types.VARCHAR))
+      case BooleanType => Option(JdbcType("CHAR(1)", java.sql.Types.CHAR))
+      case _ => None
+    }
 
   // Teradata does not support cascading a truncation
   override def isCascadingTruncateTable(): Option[Boolean] = Some(false)
@@ -48,8 +48,8 @@ private case object TeradataDialect extends JdbcDialect {
    */
   override def getTruncateQuery(
       table: String,
-      cascade: Option[Boolean] = isCascadingTruncateTable)
-                               (implicit metadata: DatabaseMetaData): String = {
+      cascade: Option[Boolean] = isCascadingTruncateTable)(implicit
+      metadata: DatabaseMetaData): String = {
     s"DELETE FROM $table ALL"
   }
 
@@ -61,4 +61,5 @@ private case object TeradataDialect extends JdbcDialect {
   override def getLimitClause(limit: Integer): String = {
     ""
   }
+
 }

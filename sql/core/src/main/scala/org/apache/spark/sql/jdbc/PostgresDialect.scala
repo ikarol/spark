@@ -29,14 +29,16 @@ import org.apache.spark.sql.execution.datasources.jdbc.{JDBCOptions, JdbcUtils}
 import org.apache.spark.sql.execution.datasources.v2.TableSampleInfo
 import org.apache.spark.sql.types._
 
-
 private object PostgresDialect extends JdbcDialect with SQLConfHelper {
 
   override def canHandle(url: String): Boolean =
     url.toLowerCase(Locale.ROOT).startsWith("jdbc:postgresql")
 
   override def getCatalystType(
-      sqlType: Int, typeName: String, size: Int, md: MetadataBuilder): Option[DataType] = {
+      sqlType: Int,
+      typeName: String,
+      size: Int,
+      md: MetadataBuilder): Option[DataType] = {
     if (sqlType == Types.REAL) {
       Some(FloatType)
     } else if (sqlType == Types.SMALLINT) {
@@ -56,52 +58,52 @@ private object PostgresDialect extends JdbcDialect with SQLConfHelper {
     } else None
   }
 
-  private def toCatalystType(
-      typeName: String,
-      precision: Int,
-      scale: Int): Option[DataType] = typeName match {
-    case "bool" => Some(BooleanType)
-    case "bit" => Some(BinaryType)
-    case "int2" => Some(ShortType)
-    case "int4" => Some(IntegerType)
-    case "int8" | "oid" => Some(LongType)
-    case "float4" => Some(FloatType)
-    case "float8" => Some(DoubleType)
-    case "text" | "varchar" | "char" | "bpchar" | "cidr" | "inet" | "json" | "jsonb" | "uuid" |
-         "xml" | "tsvector" | "tsquery" | "macaddr" | "macaddr8" | "txid_snapshot" | "point" |
-         "line" | "lseg" | "box" | "path" | "polygon" | "circle" | "pg_lsn" | "varbit" |
-         "interval" | "pg_snapshot" =>
-      Some(StringType)
-    case "bytea" => Some(BinaryType)
-    case "timestamp" | "timestamptz" | "time" | "timetz" => Some(TimestampType)
-    case "date" => Some(DateType)
-    case "numeric" | "decimal" if precision > 0 => Some(DecimalType.bounded(precision, scale))
-    case "numeric" | "decimal" =>
-      // SPARK-26538: handle numeric without explicit precision and scale.
-      Some(DecimalType. SYSTEM_DEFAULT)
-    case "money" =>
-      // money[] type seems to be broken and difficult to handle.
-      // So this method returns None for now.
-      // See SPARK-34333 and https://github.com/pgjdbc/pgjdbc/issues/1405
-      None
-    case _ => None
-  }
+  private def toCatalystType(typeName: String, precision: Int, scale: Int): Option[DataType] =
+    typeName match {
+      case "bool" => Some(BooleanType)
+      case "bit" => Some(BinaryType)
+      case "int2" => Some(ShortType)
+      case "int4" => Some(IntegerType)
+      case "int8" | "oid" => Some(LongType)
+      case "float4" => Some(FloatType)
+      case "float8" => Some(DoubleType)
+      case "text" | "varchar" | "char" | "bpchar" | "cidr" | "inet" | "json" | "jsonb" | "uuid" |
+          "xml" | "tsvector" | "tsquery" | "macaddr" | "macaddr8" | "txid_snapshot" | "point" |
+          "line" | "lseg" | "box" | "path" | "polygon" | "circle" | "pg_lsn" | "varbit" |
+          "interval" | "pg_snapshot" =>
+        Some(StringType)
+      case "bytea" => Some(BinaryType)
+      case "timestamp" | "timestamptz" | "time" | "timetz" => Some(TimestampType)
+      case "date" => Some(DateType)
+      case "numeric" | "decimal" if precision > 0 => Some(DecimalType.bounded(precision, scale))
+      case "numeric" | "decimal" =>
+        // SPARK-26538: handle numeric without explicit precision and scale.
+        Some(DecimalType.SYSTEM_DEFAULT)
+      case "money" =>
+        // money[] type seems to be broken and difficult to handle.
+        // So this method returns None for now.
+        // See SPARK-34333 and https://github.com/pgjdbc/pgjdbc/issues/1405
+        None
+      case _ => None
+    }
 
-  override def getJDBCType(dt: DataType): Option[JdbcType] = dt match {
-    case StringType => Some(JdbcType("TEXT", Types.CHAR))
-    case BinaryType => Some(JdbcType("BYTEA", Types.BINARY))
-    case BooleanType => Some(JdbcType("BOOLEAN", Types.BOOLEAN))
-    case FloatType => Some(JdbcType("FLOAT4", Types.FLOAT))
-    case DoubleType => Some(JdbcType("FLOAT8", Types.DOUBLE))
-    case ShortType | ByteType => Some(JdbcType("SMALLINT", Types.SMALLINT))
-    case t: DecimalType => Some(
-      JdbcType(s"NUMERIC(${t.precision},${t.scale})", java.sql.Types.NUMERIC))
-    case ArrayType(et, _) if et.isInstanceOf[AtomicType] =>
-      getJDBCType(et).map(_.databaseTypeDefinition)
-        .orElse(JdbcUtils.getCommonJDBCType(et).map(_.databaseTypeDefinition))
-        .map(typeName => JdbcType(s"$typeName[]", java.sql.Types.ARRAY))
-    case _ => None
-  }
+  override def getJDBCType(dt: DataType): Option[JdbcType] =
+    dt match {
+      case StringType => Some(JdbcType("TEXT", Types.CHAR))
+      case BinaryType => Some(JdbcType("BYTEA", Types.BINARY))
+      case BooleanType => Some(JdbcType("BOOLEAN", Types.BOOLEAN))
+      case FloatType => Some(JdbcType("FLOAT4", Types.FLOAT))
+      case DoubleType => Some(JdbcType("FLOAT8", Types.DOUBLE))
+      case ShortType | ByteType => Some(JdbcType("SMALLINT", Types.SMALLINT))
+      case t: DecimalType =>
+        Some(JdbcType(s"NUMERIC(${t.precision},${t.scale})", java.sql.Types.NUMERIC))
+      case ArrayType(et, _) if et.isInstanceOf[AtomicType] =>
+        getJDBCType(et)
+          .map(_.databaseTypeDefinition)
+          .orElse(JdbcUtils.getCommonJDBCType(et).map(_.databaseTypeDefinition))
+          .map(typeName => JdbcType(s"$typeName[]", java.sql.Types.ARRAY))
+      case _ => None
+    }
 
   override def getTableExistsQuery(table: String): String = {
     s"SELECT 1 FROM $table LIMIT 1"
@@ -116,15 +118,15 @@ private object PostgresDialect extends JdbcDialect with SQLConfHelper {
    * @param table The table to truncate
    * @param cascade Whether or not to cascade the truncation. Default value is the value of
    *                isCascadingTruncateTable(). Cascading a truncation will truncate tables
-    *               with a foreign key relationship to the target table. However, it will not
-    *               truncate tables with an inheritance relationship to the target table, as
-    *               the truncate query always includes "ONLY" to prevent this behaviour.
+   *               with a foreign key relationship to the target table. However, it will not
+   *               truncate tables with an inheritance relationship to the target table, as
+   *               the truncate query always includes "ONLY" to prevent this behaviour.
    * @return The SQL query to use for truncating a table
    */
   override def getTruncateQuery(
       table: String,
-      cascade: Option[Boolean] = isCascadingTruncateTable)
-                               (implicit metadata: DatabaseMetaData): String = {
+      cascade: Option[Boolean] = isCascadingTruncateTable)(implicit
+      metadata: DatabaseMetaData): String = {
     cascade match {
       case Some(true) => s"TRUNCATE TABLE ONLY $table CASCADE"
       case _ => s"TRUNCATE TABLE ONLY $table"
@@ -181,7 +183,8 @@ private object PostgresDialect extends JdbcDialect with SQLConfHelper {
       properties: util.Map[String, String]): String = {
     val columnList = columns.map(col => quoteIdentifier(col.fieldNames.head))
     var indexProperties = ""
-    val (indexType, indexPropertyList) = JdbcUtils.processIndexProperties(properties, "postgresql")
+    val (indexType, indexPropertyList) =
+      JdbcUtils.processIndexProperties(properties, "postgresql")
 
     if (indexPropertyList.nonEmpty) {
       indexProperties = "WITH (" + indexPropertyList.mkString(", ") + ")"
@@ -222,4 +225,5 @@ private object PostgresDialect extends JdbcDialect with SQLConfHelper {
       case _ => super.classifyException(message, e)
     }
   }
+
 }

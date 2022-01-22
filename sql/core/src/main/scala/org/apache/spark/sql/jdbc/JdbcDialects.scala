@@ -30,7 +30,15 @@ import org.apache.spark.sql.connector.catalog.TableChange
 import org.apache.spark.sql.connector.catalog.TableChange._
 import org.apache.spark.sql.connector.catalog.index.TableIndex
 import org.apache.spark.sql.connector.expressions.NamedReference
-import org.apache.spark.sql.connector.expressions.aggregate.{AggregateFunc, Avg, Count, CountStar, Max, Min, Sum}
+import org.apache.spark.sql.connector.expressions.aggregate.{
+  AggregateFunc,
+  Avg,
+  Count,
+  CountStar,
+  Max,
+  Min,
+  Sum
+}
 import org.apache.spark.sql.errors.QueryCompilationErrors
 import org.apache.spark.sql.execution.datasources.jdbc.{JDBCOptions, JdbcUtils}
 import org.apache.spark.sql.execution.datasources.v2.TableSampleInfo
@@ -46,7 +54,7 @@ import org.apache.spark.sql.types._
  *                     send a null value to the database.
  */
 @DeveloperApi
-case class JdbcType(databaseTypeDefinition : String, jdbcNullType : Int)
+case class JdbcType(databaseTypeDefinition: String, jdbcNullType: Int)
 
 /**
  * :: DeveloperApi ::
@@ -68,14 +76,15 @@ case class JdbcType(databaseTypeDefinition : String, jdbcNullType : Int)
  * for the given Catalyst type.
  */
 @DeveloperApi
-abstract class JdbcDialect extends Serializable with Logging{
+abstract class JdbcDialect extends Serializable with Logging {
+
   /**
    * Check if this dialect instance can handle a certain jdbc url.
    * @param url the jdbc url.
    * @return True if the dialect can be applied on the given jdbc url.
    * @throws NullPointerException if the url is null.
    */
-  def canHandle(url : String): Boolean
+  def canHandle(url: String): Boolean
 
   /**
    * Get the custom datatype mapping for the given jdbc meta information.
@@ -87,7 +96,10 @@ abstract class JdbcDialect extends Serializable with Logging{
    *         or null if the default type mapping should be used.
    */
   def getCatalystType(
-    sqlType: Int, typeName: String, size: Int, md: MetadataBuilder): Option[DataType] = None
+      sqlType: Int,
+      typeName: String,
+      size: Int,
+      md: MetadataBuilder): Option[DataType] = None
 
   /**
    * Retrieve the jdbc / sql type for a given datatype.
@@ -150,11 +162,9 @@ abstract class JdbcDialect extends Serializable with Logging{
    * @return The SQL query to use for truncating a table
    */
   @Since("2.4.0")
-  def getTruncateQuery(
-    table: String,
-    cascade: Option[Boolean] = isCascadingTruncateTable)
-                      (implicit metadata: DatabaseMetaData): String = {
-      s"TRUNCATE TABLE $table"
+  def getTruncateQuery(table: String, cascade: Option[Boolean] = isCascadingTruncateTable)(
+      implicit metadata: DatabaseMetaData): String = {
+    s"TRUNCATE TABLE $table"
   }
 
   /**
@@ -163,8 +173,7 @@ abstract class JdbcDialect extends Serializable with Logging{
    * @param connection The connection object
    * @param properties The connection properties.  This is passed through from the relation.
    */
-  def beforeFetch(connection: Connection, properties: Map[String, String]): Unit = {
-  }
+  def beforeFetch(connection: Connection, properties: Map[String, String]): Unit = {}
 
   /**
    * Escape special characters in SQL string literals.
@@ -181,18 +190,19 @@ abstract class JdbcDialect extends Serializable with Logging{
    * @return Converted value.
    */
   @Since("2.3.0")
-  def compileValue(value: Any): Any = value match {
-    case stringValue: String => s"'${escapeSql(stringValue)}'"
-    case timestampValue: Timestamp => "'" + timestampValue + "'"
-    case timestampValue: Instant =>
-      val timestampFormatter = TimestampFormatter.getFractionFormatter(
-        DateTimeUtils.getZoneId(SQLConf.get.sessionLocalTimeZone))
-      s"'${timestampFormatter.format(timestampValue)}'"
-    case dateValue: Date => "'" + dateValue + "'"
-    case dateValue: LocalDate => s"'${DateFormatter().format(dateValue)}'"
-    case arrayValue: Array[Any] => arrayValue.map(compileValue).mkString(", ")
-    case _ => value
-  }
+  def compileValue(value: Any): Any =
+    value match {
+      case stringValue: String => s"'${escapeSql(stringValue)}'"
+      case timestampValue: Timestamp => "'" + timestampValue + "'"
+      case timestampValue: Instant =>
+        val timestampFormatter = TimestampFormatter.getFractionFormatter(
+          DateTimeUtils.getZoneId(SQLConf.get.sessionLocalTimeZone))
+        s"'${timestampFormatter.format(timestampValue)}'"
+      case dateValue: Date => "'" + dateValue + "'"
+      case dateValue: LocalDate => s"'${DateFormatter().format(dateValue)}'"
+      case arrayValue: Array[Any] => arrayValue.map(compileValue).mkString(", ")
+      case _ => value
+    }
 
   /**
    * Converts aggregate function to String representing a SQL expression.
@@ -274,12 +284,15 @@ abstract class JdbcDialect extends Serializable with Logging{
           updateClause += getDeleteColumnQuery(tableName, name(0))
         case updateColumnType: UpdateColumnType if updateColumnType.fieldNames.length == 1 =>
           val name = updateColumnType.fieldNames
-          val dataType = JdbcUtils.getJdbcType(updateColumnType.newDataType(), this)
-            .databaseTypeDefinition
+          val dataType =
+            JdbcUtils.getJdbcType(updateColumnType.newDataType(), this).databaseTypeDefinition
           updateClause += getUpdateColumnTypeQuery(tableName, name(0), dataType)
         case updateNull: UpdateColumnNullability if updateNull.fieldNames.length == 1 =>
           val name = updateNull.fieldNames
-          updateClause += getUpdateColumnNullabilityQuery(tableName, name(0), updateNull.nullable())
+          updateClause += getUpdateColumnNullabilityQuery(
+            tableName,
+            name(0),
+            updateNull.nullable())
         case _ =>
           throw QueryCompilationErrors.unsupportedTableChangeInJDBCCatalogError(change)
       }
@@ -368,7 +381,7 @@ abstract class JdbcDialect extends Serializable with Logging{
    *
    * @param indexName the name of the index to be dropped.
    * @param tableName the table name on which index to be dropped.
-  * @return the SQL statement to use for dropping the index.
+   * @return the SQL statement to use for dropping the index.
    */
   def dropIndex(indexName: String, tableName: String): String = {
     throw new UnsupportedOperationException("dropIndex is not supported")
@@ -398,13 +411,14 @@ abstract class JdbcDialect extends Serializable with Logging{
    * returns the LIMIT clause for the SELECT statement
    */
   def getLimitClause(limit: Integer): String = {
-    if (limit > 0 ) s"LIMIT $limit" else ""
+    if (limit > 0) s"LIMIT $limit" else ""
   }
 
   def supportsTableSample: Boolean = false
 
   def getTableSample(sample: TableSampleInfo): String =
     throw new UnsupportedOperationException("TableSample is not supported by this data source")
+
 }
 
 /**
@@ -427,7 +441,7 @@ object JdbcDialects {
    *
    * @param dialect The new dialect.
    */
-  def registerDialect(dialect: JdbcDialect) : Unit = {
+  def registerDialect(dialect: JdbcDialect): Unit = {
     dialects = dialect :: dialects.filterNot(_ == dialect)
   }
 
@@ -436,7 +450,7 @@ object JdbcDialects {
    *
    * @param dialect The jdbc dialect.
    */
-  def unregisterDialect(dialect : JdbcDialect) : Unit = {
+  def unregisterDialect(dialect: JdbcDialect): Unit = {
     dialects = dialects.filterNot(_ == dialect)
   }
 
@@ -462,11 +476,12 @@ object JdbcDialects {
       case _ => new AggregatedDialect(matchingDialects)
     }
   }
+
 }
 
 /**
  * NOOP dialect object, always returning the neutral element.
  */
 private object NoopDialect extends JdbcDialect {
-  override def canHandle(url : String): Boolean = true
+  override def canHandle(url: String): Boolean = true
 }

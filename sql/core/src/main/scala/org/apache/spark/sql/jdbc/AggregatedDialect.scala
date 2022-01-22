@@ -32,11 +32,14 @@ private class AggregatedDialect(dialects: List[JdbcDialect]) extends JdbcDialect
 
   require(dialects.nonEmpty)
 
-  override def canHandle(url : String): Boolean =
+  override def canHandle(url: String): Boolean =
     dialects.map(_.canHandle(url)).reduce(_ && _)
 
   override def getCatalystType(
-      sqlType: Int, typeName: String, size: Int, md: MetadataBuilder): Option[DataType] = {
+      sqlType: Int,
+      typeName: String,
+      size: Int,
+      md: MetadataBuilder): Option[DataType] = {
     dialects.flatMap(_.getCatalystType(sqlType, typeName, size, md)).headOption
   }
 
@@ -75,8 +78,9 @@ private class AggregatedDialect(dialects: List[JdbcDialect]) extends JdbcDialect
    */
   override def getTruncateQuery(
       table: String,
-      cascade: Option[Boolean] = isCascadingTruncateTable)
-                               (implicit metadata: DatabaseMetaData): String = {
+      cascade: Option[Boolean] = isCascadingTruncateTable)(implicit
+      metadata: DatabaseMetaData): String = {
     dialects.head.getTruncateQuery(table, cascade)
   }
+
 }

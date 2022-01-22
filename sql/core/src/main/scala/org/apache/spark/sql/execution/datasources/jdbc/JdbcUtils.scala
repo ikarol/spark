@@ -17,7 +17,15 @@
 
 package org.apache.spark.sql.execution.datasources.jdbc
 
-import java.sql.{Connection, Driver, JDBCType, PreparedStatement, ResultSet, ResultSetMetaData, SQLException}
+import java.sql.{
+  Connection,
+  Driver,
+  JDBCType,
+  PreparedStatement,
+  ResultSet,
+  ResultSetMetaData,
+  SQLException
+}
 import java.time.{Instant, LocalDate}
 import java.util
 import java.util.Locale
@@ -38,7 +46,12 @@ import org.apache.spark.sql.catalyst.encoders.RowEncoder
 import org.apache.spark.sql.catalyst.expressions.SpecificInternalRow
 import org.apache.spark.sql.catalyst.parser.CatalystSqlParser
 import org.apache.spark.sql.catalyst.util.{CaseInsensitiveMap, DateTimeUtils, GenericArrayData}
-import org.apache.spark.sql.catalyst.util.DateTimeUtils.{instantToMicros, localDateToDays, toJavaDate, toJavaTimestamp}
+import org.apache.spark.sql.catalyst.util.DateTimeUtils.{
+  instantToMicros,
+  localDateToDays,
+  toJavaDate,
+  toJavaTimestamp
+}
 import org.apache.spark.sql.connector.catalog.TableChange
 import org.apache.spark.sql.connector.catalog.index.{SupportsIndex, TableIndex}
 import org.apache.spark.sql.connector.expressions.NamedReference
@@ -54,6 +67,7 @@ import org.apache.spark.util.NextIterator
  * Util functions for JDBC tables.
  */
 object JdbcUtils extends Logging with SQLConfHelper {
+
   /**
    * Returns a factory for creating connections to the given JDBC URL.
    *
@@ -67,7 +81,8 @@ object JdbcUtils extends Logging with SQLConfHelper {
       val driver: Driver = DriverRegistry.get(driverClass)
       val connection =
         ConnectionProvider.create(driver, options.parameters, options.connectionProviderName)
-      require(connection != null,
+      require(
+        connection != null,
         s"The driver could not open a JDBC connection. Check the URL: ${options.url}")
       connection
     }
@@ -141,12 +156,14 @@ object JdbcUtils extends Logging with SQLConfHelper {
       // PostgreSQL/Oracle, we need to respect the existing case-sensitive column names instead of
       // RDD column names for user convenience.
       val tableColumnNames = tableSchema.get.fieldNames
-      rddSchema.fields.map { col =>
-        val normalizedName = tableColumnNames.find(f => conf.resolver(f, col.name)).getOrElse {
-          throw QueryCompilationErrors.columnNotFoundInSchemaError(col, tableSchema)
+      rddSchema.fields
+        .map { col =>
+          val normalizedName = tableColumnNames.find(f => conf.resolver(f, col.name)).getOrElse {
+            throw QueryCompilationErrors.columnNotFoundInSchemaError(col, tableSchema)
+          }
+          dialect.quoteIdentifier(normalizedName)
         }
-        dialect.quoteIdentifier(normalizedName)
-      }.mkString(",")
+        .mkString(",")
     }
     val placeholders = rddSchema.fields.map(_ => "?").mkString(",")
     s"INSERT INTO $table ($columns) VALUES ($placeholders)"
@@ -171,15 +188,17 @@ object JdbcUtils extends Logging with SQLConfHelper {
       case BinaryType => Option(JdbcType("BLOB", java.sql.Types.BLOB))
       case TimestampType => Option(JdbcType("TIMESTAMP", java.sql.Types.TIMESTAMP))
       case DateType => Option(JdbcType("DATE", java.sql.Types.DATE))
-      case t: DecimalType => Option(
-        JdbcType(s"DECIMAL(${t.precision},${t.scale})", java.sql.Types.DECIMAL))
+      case t: DecimalType =>
+        Option(JdbcType(s"DECIMAL(${t.precision},${t.scale})", java.sql.Types.DECIMAL))
       case _ => None
     }
   }
 
   def getJdbcType(dt: DataType, dialect: JdbcDialect): JdbcType = {
-    dialect.getJDBCType(dt).orElse(getCommonJDBCType(dt)).getOrElse(
-      throw QueryExecutionErrors.cannotGetJdbcTypeError(dt))
+    dialect
+      .getJDBCType(dt)
+      .orElse(getCommonJDBCType(dt))
+      .getOrElse(throw QueryExecutionErrors.cannotGetJdbcTypeError(dt))
   }
 
   /**
@@ -196,52 +215,54 @@ object JdbcUtils extends Logging with SQLConfHelper {
       signed: Boolean): DataType = {
     val answer = sqlType match {
       // scalastyle:off
-      case java.sql.Types.ARRAY         => null
-      case java.sql.Types.BIGINT        => if (signed) { LongType } else { DecimalType(20,0) }
-      case java.sql.Types.BINARY        => BinaryType
-      case java.sql.Types.BIT           => BooleanType // @see JdbcDialect for quirks
-      case java.sql.Types.BLOB          => BinaryType
-      case java.sql.Types.BOOLEAN       => BooleanType
-      case java.sql.Types.CHAR          => StringType
-      case java.sql.Types.CLOB          => StringType
-      case java.sql.Types.DATALINK      => null
-      case java.sql.Types.DATE          => DateType
-      case java.sql.Types.DECIMAL
-        if precision != 0 || scale != 0 => DecimalType.bounded(precision, scale)
-      case java.sql.Types.DECIMAL       => DecimalType.SYSTEM_DEFAULT
-      case java.sql.Types.DISTINCT      => null
-      case java.sql.Types.DOUBLE        => DoubleType
-      case java.sql.Types.FLOAT         => FloatType
-      case java.sql.Types.INTEGER       => if (signed) { IntegerType } else { LongType }
-      case java.sql.Types.JAVA_OBJECT   => null
-      case java.sql.Types.LONGNVARCHAR  => StringType
+      case java.sql.Types.ARRAY => null
+      case java.sql.Types.BIGINT =>
+        if (signed) { LongType }
+        else { DecimalType(20, 0) }
+      case java.sql.Types.BINARY => BinaryType
+      case java.sql.Types.BIT => BooleanType // @see JdbcDialect for quirks
+      case java.sql.Types.BLOB => BinaryType
+      case java.sql.Types.BOOLEAN => BooleanType
+      case java.sql.Types.CHAR => StringType
+      case java.sql.Types.CLOB => StringType
+      case java.sql.Types.DATALINK => null
+      case java.sql.Types.DATE => DateType
+      case java.sql.Types.DECIMAL if precision != 0 || scale != 0 =>
+        DecimalType.bounded(precision, scale)
+      case java.sql.Types.DECIMAL => DecimalType.SYSTEM_DEFAULT
+      case java.sql.Types.DISTINCT => null
+      case java.sql.Types.DOUBLE => DoubleType
+      case java.sql.Types.FLOAT => FloatType
+      case java.sql.Types.INTEGER =>
+        if (signed) { IntegerType }
+        else { LongType }
+      case java.sql.Types.JAVA_OBJECT => null
+      case java.sql.Types.LONGNVARCHAR => StringType
       case java.sql.Types.LONGVARBINARY => BinaryType
-      case java.sql.Types.LONGVARCHAR   => StringType
-      case java.sql.Types.NCHAR         => StringType
-      case java.sql.Types.NCLOB         => StringType
-      case java.sql.Types.NULL          => null
-      case java.sql.Types.NUMERIC
-        if precision != 0 || scale != 0 => DecimalType.bounded(precision, scale)
-      case java.sql.Types.NUMERIC       => DecimalType.SYSTEM_DEFAULT
-      case java.sql.Types.NVARCHAR      => StringType
-      case java.sql.Types.OTHER         => null
-      case java.sql.Types.REAL          => DoubleType
-      case java.sql.Types.REF           => StringType
-      case java.sql.Types.REF_CURSOR    => null
-      case java.sql.Types.ROWID         => StringType
-      case java.sql.Types.SMALLINT      => IntegerType
-      case java.sql.Types.SQLXML        => StringType
-      case java.sql.Types.STRUCT        => StringType
-      case java.sql.Types.TIME          => TimestampType
-      case java.sql.Types.TIME_WITH_TIMEZONE
-                                        => null
-      case java.sql.Types.TIMESTAMP     => TimestampType
-      case java.sql.Types.TIMESTAMP_WITH_TIMEZONE
-                                        => null
-      case java.sql.Types.TINYINT       => IntegerType
-      case java.sql.Types.VARBINARY     => BinaryType
-      case java.sql.Types.VARCHAR       => StringType
-      case _                            =>
+      case java.sql.Types.LONGVARCHAR => StringType
+      case java.sql.Types.NCHAR => StringType
+      case java.sql.Types.NCLOB => StringType
+      case java.sql.Types.NULL => null
+      case java.sql.Types.NUMERIC if precision != 0 || scale != 0 =>
+        DecimalType.bounded(precision, scale)
+      case java.sql.Types.NUMERIC => DecimalType.SYSTEM_DEFAULT
+      case java.sql.Types.NVARCHAR => StringType
+      case java.sql.Types.OTHER => null
+      case java.sql.Types.REAL => DoubleType
+      case java.sql.Types.REF => StringType
+      case java.sql.Types.REF_CURSOR => null
+      case java.sql.Types.ROWID => StringType
+      case java.sql.Types.SMALLINT => IntegerType
+      case java.sql.Types.SQLXML => StringType
+      case java.sql.Types.STRUCT => StringType
+      case java.sql.Types.TIME => TimestampType
+      case java.sql.Types.TIME_WITH_TIMEZONE => null
+      case java.sql.Types.TIMESTAMP => TimestampType
+      case java.sql.Types.TIMESTAMP_WITH_TIMEZONE => null
+      case java.sql.Types.TINYINT => IntegerType
+      case java.sql.Types.VARBINARY => BinaryType
+      case java.sql.Types.VARCHAR => StringType
+      case _ =>
         throw QueryExecutionErrors.unrecognizedSqlTypeError(sqlType)
       // scalastyle:on
     }
@@ -299,9 +320,10 @@ object JdbcUtils extends Logging with SQLConfHelper {
           rsmd.isSigned(i + 1)
         } catch {
           // Workaround for HIVE-14684:
-          case e: SQLException if
-          e.getMessage == "Method not supported" &&
-            rsmd.getClass.getName == "org.apache.hive.jdbc.HiveResultSetMetaData" => true
+          case e: SQLException
+              if e.getMessage == "Method not supported" &&
+                rsmd.getClass.getName == "org.apache.hive.jdbc.HiveResultSetMetaData" =>
+            true
         }
       }
       val nullable = if (alwaysNullable) {
@@ -324,8 +346,9 @@ object JdbcUtils extends Logging with SQLConfHelper {
       }
 
       val columnType =
-        dialect.getCatalystType(dataType, typeName, fieldSize, metadata).getOrElse(
-          getCatalystType(dataType, fieldSize, fieldScale, isSigned))
+        dialect
+          .getCatalystType(dataType, typeName, fieldSize, metadata)
+          .getOrElse(getCatalystType(dataType, fieldSize, fieldScale, isSigned))
       fields(i) = StructField(columnName, columnType, nullable, metadata.build())
       i = i + 1
     }
@@ -390,155 +413,151 @@ object JdbcUtils extends Logging with SQLConfHelper {
   private def makeGetters(schema: StructType): Array[JDBCValueGetter] =
     schema.fields.map(sf => makeGetter(sf.dataType, sf.metadata))
 
-  private def makeGetter(dt: DataType, metadata: Metadata): JDBCValueGetter = dt match {
-    case BooleanType =>
-      (rs: ResultSet, row: InternalRow, pos: Int) =>
-        row.setBoolean(pos, rs.getBoolean(pos + 1))
+  private def makeGetter(dt: DataType, metadata: Metadata): JDBCValueGetter =
+    dt match {
+      case BooleanType =>
+        (rs: ResultSet, row: InternalRow, pos: Int) => row.setBoolean(pos, rs.getBoolean(pos + 1))
 
-    case DateType =>
-      (rs: ResultSet, row: InternalRow, pos: Int) =>
-        // DateTimeUtils.fromJavaDate does not handle null value, so we need to check it.
-        val dateVal = rs.getDate(pos + 1)
-        if (dateVal != null) {
-          row.setInt(pos, DateTimeUtils.fromJavaDate(dateVal))
-        } else {
-          row.update(pos, null)
+      case DateType =>
+        (rs: ResultSet, row: InternalRow, pos: Int) =>
+          // DateTimeUtils.fromJavaDate does not handle null value, so we need to check it.
+          val dateVal = rs.getDate(pos + 1)
+          if (dateVal != null) {
+            row.setInt(pos, DateTimeUtils.fromJavaDate(dateVal))
+          } else {
+            row.update(pos, null)
+          }
+
+        // When connecting with Oracle DB through JDBC, the precision and scale of BigDecimal
+        // object returned by ResultSet.getBigDecimal is not correctly matched to the table
+        // schema reported by ResultSetMetaData.getPrecision and ResultSetMetaData.getScale.
+        // If inserting values like 19999 into a column with NUMBER(12, 2) type, you get through
+        // a BigDecimal object with scale as 0. But the dataframe schema has correct type as
+        // DecimalType(12, 2). Thus, after saving the dataframe into parquet file and then
+        // retrieve it, you will get wrong result 199.99.
+      // So it is needed to set precision and scale for Decimal based on JDBC metadata.
+      case DecimalType.Fixed(p, s) =>
+        (rs: ResultSet, row: InternalRow, pos: Int) =>
+          val decimal =
+            nullSafeConvert[java.math.BigDecimal](
+              rs.getBigDecimal(pos + 1),
+              d => Decimal(d, p, s))
+          row.update(pos, decimal)
+
+      case DoubleType =>
+        (rs: ResultSet, row: InternalRow, pos: Int) => row.setDouble(pos, rs.getDouble(pos + 1))
+
+      case FloatType =>
+        (rs: ResultSet, row: InternalRow, pos: Int) => row.setFloat(pos, rs.getFloat(pos + 1))
+
+      case IntegerType =>
+        (rs: ResultSet, row: InternalRow, pos: Int) => row.setInt(pos, rs.getInt(pos + 1))
+
+      case LongType if metadata.contains("binarylong") =>
+        (rs: ResultSet, row: InternalRow, pos: Int) =>
+          val bytes = rs.getBytes(pos + 1)
+          var ans = 0L
+          var j = 0
+          while (j < bytes.length) {
+            ans = 256 * ans + (255 & bytes(j))
+            j = j + 1
+          }
+          row.setLong(pos, ans)
+
+      case LongType =>
+        (rs: ResultSet, row: InternalRow, pos: Int) => row.setLong(pos, rs.getLong(pos + 1))
+
+      case ShortType =>
+        (rs: ResultSet, row: InternalRow, pos: Int) => row.setShort(pos, rs.getShort(pos + 1))
+
+      case ByteType =>
+        (rs: ResultSet, row: InternalRow, pos: Int) => row.setByte(pos, rs.getByte(pos + 1))
+
+      case StringType if metadata.contains("rowid") =>
+        (rs: ResultSet, row: InternalRow, pos: Int) =>
+          row.update(pos, UTF8String.fromString(rs.getRowId(pos + 1).toString))
+
+      case StringType =>
+        (rs: ResultSet, row: InternalRow, pos: Int) =>
+          // TODO(davies): use getBytes for better performance, if the encoding is UTF-8
+          row.update(pos, UTF8String.fromString(rs.getString(pos + 1)))
+
+        // SPARK-34357 - sql TIME type represents as zero epoch timestamp.
+        // It is mapped as Spark TimestampType but fixed at 1970-01-01 for day,
+        // time portion is time of day, with no reference to a particular calendar,
+        // time zone or date, with a precision till microseconds.
+      // It stores the number of milliseconds after midnight, 00:00:00.000000
+      case TimestampType if metadata.contains("logical_time_type") =>
+        (rs: ResultSet, row: InternalRow, pos: Int) => {
+          val rawTime = rs.getTime(pos + 1)
+          if (rawTime != null) {
+            val localTimeMicro =
+              TimeUnit.NANOSECONDS.toMicros(rawTime.toLocalTime().toNanoOfDay())
+            val utcTimeMicro = DateTimeUtils.toUTCTime(localTimeMicro, conf.sessionLocalTimeZone)
+            row.setLong(pos, utcTimeMicro)
+          } else {
+            row.update(pos, null)
+          }
         }
 
-    // When connecting with Oracle DB through JDBC, the precision and scale of BigDecimal
-    // object returned by ResultSet.getBigDecimal is not correctly matched to the table
-    // schema reported by ResultSetMetaData.getPrecision and ResultSetMetaData.getScale.
-    // If inserting values like 19999 into a column with NUMBER(12, 2) type, you get through
-    // a BigDecimal object with scale as 0. But the dataframe schema has correct type as
-    // DecimalType(12, 2). Thus, after saving the dataframe into parquet file and then
-    // retrieve it, you will get wrong result 199.99.
-    // So it is needed to set precision and scale for Decimal based on JDBC metadata.
-    case DecimalType.Fixed(p, s) =>
-      (rs: ResultSet, row: InternalRow, pos: Int) =>
-        val decimal =
-          nullSafeConvert[java.math.BigDecimal](rs.getBigDecimal(pos + 1), d => Decimal(d, p, s))
-        row.update(pos, decimal)
+      case TimestampType =>
+        (rs: ResultSet, row: InternalRow, pos: Int) =>
+          val t = rs.getTimestamp(pos + 1)
+          if (t != null) {
+            row.setLong(pos, DateTimeUtils.fromJavaTimestamp(t))
+          } else {
+            row.update(pos, null)
+          }
 
-    case DoubleType =>
-      (rs: ResultSet, row: InternalRow, pos: Int) =>
-        row.setDouble(pos, rs.getDouble(pos + 1))
+      case BinaryType =>
+        (rs: ResultSet, row: InternalRow, pos: Int) => row.update(pos, rs.getBytes(pos + 1))
 
-    case FloatType =>
-      (rs: ResultSet, row: InternalRow, pos: Int) =>
-        row.setFloat(pos, rs.getFloat(pos + 1))
+      case ArrayType(et, _) =>
+        val elementConversion = et match {
+          case TimestampType =>
+            (array: Object) =>
+              array.asInstanceOf[Array[java.sql.Timestamp]].map { timestamp =>
+                nullSafeConvert(timestamp, DateTimeUtils.fromJavaTimestamp)
+              }
 
-    case IntegerType =>
-      (rs: ResultSet, row: InternalRow, pos: Int) =>
-        row.setInt(pos, rs.getInt(pos + 1))
+          case StringType =>
+            (array: Object) =>
+              // some underling types are not String such as uuid, inet, cidr, etc.
+              array
+                .asInstanceOf[Array[java.lang.Object]]
+                .map(obj => if (obj == null) null else UTF8String.fromString(obj.toString))
 
-    case LongType if metadata.contains("binarylong") =>
-      (rs: ResultSet, row: InternalRow, pos: Int) =>
-        val bytes = rs.getBytes(pos + 1)
-        var ans = 0L
-        var j = 0
-        while (j < bytes.length) {
-          ans = 256 * ans + (255 & bytes(j))
-          j = j + 1
-        }
-        row.setLong(pos, ans)
+          case DateType =>
+            (array: Object) =>
+              array.asInstanceOf[Array[java.sql.Date]].map { date =>
+                nullSafeConvert(date, DateTimeUtils.fromJavaDate)
+              }
 
-    case LongType =>
-      (rs: ResultSet, row: InternalRow, pos: Int) =>
-        row.setLong(pos, rs.getLong(pos + 1))
+          case dt: DecimalType =>
+            (array: Object) =>
+              array.asInstanceOf[Array[java.math.BigDecimal]].map { decimal =>
+                nullSafeConvert[java.math.BigDecimal](
+                  decimal,
+                  d => Decimal(d, dt.precision, dt.scale))
+              }
 
-    case ShortType =>
-      (rs: ResultSet, row: InternalRow, pos: Int) =>
-        row.setShort(pos, rs.getShort(pos + 1))
+          case LongType if metadata.contains("binarylong") =>
+            throw QueryExecutionErrors.unsupportedArrayElementTypeBasedOnBinaryError(dt)
 
-    case ByteType =>
-      (rs: ResultSet, row: InternalRow, pos: Int) =>
-        row.setByte(pos, rs.getByte(pos + 1))
+          case ArrayType(_, _) =>
+            throw QueryExecutionErrors.nestedArraysUnsupportedError()
 
-    case StringType if metadata.contains("rowid") =>
-      (rs: ResultSet, row: InternalRow, pos: Int) =>
-        row.update(pos, UTF8String.fromString(rs.getRowId(pos + 1).toString))
-
-    case StringType =>
-      (rs: ResultSet, row: InternalRow, pos: Int) =>
-        // TODO(davies): use getBytes for better performance, if the encoding is UTF-8
-        row.update(pos, UTF8String.fromString(rs.getString(pos + 1)))
-
-    // SPARK-34357 - sql TIME type represents as zero epoch timestamp.
-    // It is mapped as Spark TimestampType but fixed at 1970-01-01 for day,
-    // time portion is time of day, with no reference to a particular calendar,
-    // time zone or date, with a precision till microseconds.
-    // It stores the number of milliseconds after midnight, 00:00:00.000000
-    case TimestampType if metadata.contains("logical_time_type") =>
-      (rs: ResultSet, row: InternalRow, pos: Int) => {
-        val rawTime = rs.getTime(pos + 1)
-        if (rawTime != null) {
-          val localTimeMicro = TimeUnit.NANOSECONDS.toMicros(
-            rawTime.toLocalTime().toNanoOfDay())
-          val utcTimeMicro = DateTimeUtils.toUTCTime(
-            localTimeMicro, conf.sessionLocalTimeZone)
-          row.setLong(pos, utcTimeMicro)
-        } else {
-          row.update(pos, null)
-        }
-      }
-
-    case TimestampType =>
-      (rs: ResultSet, row: InternalRow, pos: Int) =>
-        val t = rs.getTimestamp(pos + 1)
-        if (t != null) {
-          row.setLong(pos, DateTimeUtils.fromJavaTimestamp(t))
-        } else {
-          row.update(pos, null)
+          case _ => (array: Object) => array.asInstanceOf[Array[Any]]
         }
 
-    case BinaryType =>
-      (rs: ResultSet, row: InternalRow, pos: Int) =>
-        row.update(pos, rs.getBytes(pos + 1))
+        (rs: ResultSet, row: InternalRow, pos: Int) =>
+          val array = nullSafeConvert[java.sql.Array](
+            input = rs.getArray(pos + 1),
+            array => new GenericArrayData(elementConversion.apply(array.getArray)))
+          row.update(pos, array)
 
-    case ArrayType(et, _) =>
-      val elementConversion = et match {
-        case TimestampType =>
-          (array: Object) =>
-            array.asInstanceOf[Array[java.sql.Timestamp]].map { timestamp =>
-              nullSafeConvert(timestamp, DateTimeUtils.fromJavaTimestamp)
-            }
-
-        case StringType =>
-          (array: Object) =>
-            // some underling types are not String such as uuid, inet, cidr, etc.
-            array.asInstanceOf[Array[java.lang.Object]]
-              .map(obj => if (obj == null) null else UTF8String.fromString(obj.toString))
-
-        case DateType =>
-          (array: Object) =>
-            array.asInstanceOf[Array[java.sql.Date]].map { date =>
-              nullSafeConvert(date, DateTimeUtils.fromJavaDate)
-            }
-
-        case dt: DecimalType =>
-          (array: Object) =>
-            array.asInstanceOf[Array[java.math.BigDecimal]].map { decimal =>
-              nullSafeConvert[java.math.BigDecimal](
-                decimal, d => Decimal(d, dt.precision, dt.scale))
-            }
-
-        case LongType if metadata.contains("binarylong") =>
-          throw QueryExecutionErrors.unsupportedArrayElementTypeBasedOnBinaryError(dt)
-
-        case ArrayType(_, _) =>
-          throw QueryExecutionErrors.nestedArraysUnsupportedError()
-
-        case _ => (array: Object) => array.asInstanceOf[Array[Any]]
-      }
-
-      (rs: ResultSet, row: InternalRow, pos: Int) =>
-        val array = nullSafeConvert[java.sql.Array](
-          input = rs.getArray(pos + 1),
-          array => new GenericArrayData(elementConversion.apply(array.getArray)))
-        row.update(pos, array)
-
-    case _ => throw QueryExecutionErrors.unsupportedJdbcTypeError(dt.catalogString)
-  }
+      case _ => throw QueryExecutionErrors.unsupportedJdbcTypeError(dt.catalogString)
+    }
 
   private def nullSafeConvert[T](input: T, f: T => Any): Any = {
     if (input == null) {
@@ -556,79 +575,70 @@ object JdbcUtils extends Logging with SQLConfHelper {
   private def makeSetter(
       conn: Connection,
       dialect: JdbcDialect,
-      dataType: DataType): JDBCValueSetter = dataType match {
-    case IntegerType =>
-      (stmt: PreparedStatement, row: Row, pos: Int) =>
-        stmt.setInt(pos + 1, row.getInt(pos))
+      dataType: DataType): JDBCValueSetter =
+    dataType match {
+      case IntegerType =>
+        (stmt: PreparedStatement, row: Row, pos: Int) => stmt.setInt(pos + 1, row.getInt(pos))
 
-    case LongType =>
-      (stmt: PreparedStatement, row: Row, pos: Int) =>
-        stmt.setLong(pos + 1, row.getLong(pos))
+      case LongType =>
+        (stmt: PreparedStatement, row: Row, pos: Int) => stmt.setLong(pos + 1, row.getLong(pos))
 
-    case DoubleType =>
-      (stmt: PreparedStatement, row: Row, pos: Int) =>
-        stmt.setDouble(pos + 1, row.getDouble(pos))
-
-    case FloatType =>
-      (stmt: PreparedStatement, row: Row, pos: Int) =>
-        stmt.setFloat(pos + 1, row.getFloat(pos))
-
-    case ShortType =>
-      (stmt: PreparedStatement, row: Row, pos: Int) =>
-        stmt.setInt(pos + 1, row.getShort(pos))
-
-    case ByteType =>
-      (stmt: PreparedStatement, row: Row, pos: Int) =>
-        stmt.setInt(pos + 1, row.getByte(pos))
-
-    case BooleanType =>
-      (stmt: PreparedStatement, row: Row, pos: Int) =>
-        stmt.setBoolean(pos + 1, row.getBoolean(pos))
-
-    case StringType =>
-      (stmt: PreparedStatement, row: Row, pos: Int) =>
-        stmt.setString(pos + 1, row.getString(pos))
-
-    case BinaryType =>
-      (stmt: PreparedStatement, row: Row, pos: Int) =>
-        stmt.setBytes(pos + 1, row.getAs[Array[Byte]](pos))
-
-    case TimestampType =>
-      if (conf.datetimeJava8ApiEnabled) {
+      case DoubleType =>
         (stmt: PreparedStatement, row: Row, pos: Int) =>
+          stmt.setDouble(pos + 1, row.getDouble(pos))
+
+      case FloatType =>
+        (stmt: PreparedStatement, row: Row, pos: Int) => stmt.setFloat(pos + 1, row.getFloat(pos))
+
+      case ShortType =>
+        (stmt: PreparedStatement, row: Row, pos: Int) => stmt.setInt(pos + 1, row.getShort(pos))
+
+      case ByteType =>
+        (stmt: PreparedStatement, row: Row, pos: Int) => stmt.setInt(pos + 1, row.getByte(pos))
+
+      case BooleanType =>
+        (stmt: PreparedStatement, row: Row, pos: Int) =>
+          stmt.setBoolean(pos + 1, row.getBoolean(pos))
+
+      case StringType =>
+        (stmt: PreparedStatement, row: Row, pos: Int) =>
+          stmt.setString(pos + 1, row.getString(pos))
+
+      case BinaryType =>
+        (stmt: PreparedStatement, row: Row, pos: Int) =>
+          stmt.setBytes(pos + 1, row.getAs[Array[Byte]](pos))
+
+      case TimestampType =>
+        if (conf.datetimeJava8ApiEnabled) { (stmt: PreparedStatement, row: Row, pos: Int) =>
           stmt.setTimestamp(pos + 1, toJavaTimestamp(instantToMicros(row.getAs[Instant](pos))))
-      } else {
-        (stmt: PreparedStatement, row: Row, pos: Int) =>
+        } else { (stmt: PreparedStatement, row: Row, pos: Int) =>
           stmt.setTimestamp(pos + 1, row.getAs[java.sql.Timestamp](pos))
-      }
+        }
 
-    case DateType =>
-      if (conf.datetimeJava8ApiEnabled) {
-        (stmt: PreparedStatement, row: Row, pos: Int) =>
+      case DateType =>
+        if (conf.datetimeJava8ApiEnabled) { (stmt: PreparedStatement, row: Row, pos: Int) =>
           stmt.setDate(pos + 1, toJavaDate(localDateToDays(row.getAs[LocalDate](pos))))
-      } else {
-        (stmt: PreparedStatement, row: Row, pos: Int) =>
+        } else { (stmt: PreparedStatement, row: Row, pos: Int) =>
           stmt.setDate(pos + 1, row.getAs[java.sql.Date](pos))
-      }
+        }
 
-    case t: DecimalType =>
-      (stmt: PreparedStatement, row: Row, pos: Int) =>
-        stmt.setBigDecimal(pos + 1, row.getDecimal(pos))
+      case t: DecimalType =>
+        (stmt: PreparedStatement, row: Row, pos: Int) =>
+          stmt.setBigDecimal(pos + 1, row.getDecimal(pos))
 
-    case ArrayType(et, _) =>
-      // remove type length parameters from end of type name
-      val typeName = getJdbcType(et, dialect).databaseTypeDefinition
-        .toLowerCase(Locale.ROOT).split("\\(")(0)
-      (stmt: PreparedStatement, row: Row, pos: Int) =>
-        val array = conn.createArrayOf(
-          typeName,
-          row.getSeq[AnyRef](pos).toArray)
-        stmt.setArray(pos + 1, array)
+      case ArrayType(et, _) =>
+        // remove type length parameters from end of type name
+        val typeName = getJdbcType(et, dialect).databaseTypeDefinition
+          .toLowerCase(Locale.ROOT)
+          .split("\\(")(0)
+        (stmt: PreparedStatement, row: Row, pos: Int) =>
+          val array = conn.createArrayOf(typeName, row.getSeq[AnyRef](pos).toArray)
+          stmt.setArray(pos + 1, array)
 
-    case _ =>
-      (_: PreparedStatement, _: Row, pos: Int) =>
-        throw QueryExecutionErrors.cannotTranslateNonNullValueForFieldError(pos)
-  }
+      case _ =>
+        (_: PreparedStatement, _: Row, pos: Int) =>
+          throw QueryExecutionErrors.cannotTranslateNonNullValueForFieldError(pos)
+    }
 
   /**
    * Saves a partition of a DataFrame to the JDBC database.  This is done in
@@ -680,15 +690,17 @@ object JdbcUtils extends Logging with SQLConfHelper {
           // has been chosen and transactions are supported
           val defaultIsolation = metadata.getDefaultTransactionIsolation
           finalIsolationLevel = defaultIsolation
-          if (metadata.supportsTransactionIsolationLevel(isolationLevel))  {
+          if (metadata.supportsTransactionIsolationLevel(isolationLevel)) {
             // Finally update to actually requested level if possible
             finalIsolationLevel = isolationLevel
           } else {
-            logWarning(s"Requested isolation level $isolationLevel is not supported; " +
+            logWarning(
+              s"Requested isolation level $isolationLevel is not supported; " +
                 s"falling back to default isolation level $defaultIsolation")
           }
         } else {
-          logWarning(s"Requested isolation level $isolationLevel, but transactions are unsupported")
+          logWarning(
+            s"Requested isolation level $isolationLevel, but transactions are unsupported")
         }
       } catch {
         case NonFatal(e) => logWarning("Exception while detecting transaction support", e)
@@ -820,13 +832,15 @@ object JdbcUtils extends Logging with SQLConfHelper {
 
     // checks duplicate columns in the user specified column types.
     SchemaUtils.checkColumnNameDuplication(
-      userSchema.map(_.name), "in the createTableColumnTypes option value", conf.resolver)
+      userSchema.map(_.name),
+      "in the createTableColumnTypes option value",
+      conf.resolver)
 
     // checks if user specified column names exist in the DataFrame schema
     userSchema.fieldNames.foreach { col =>
       schema.find(f => conf.resolver(f.name, col)).getOrElse {
-        throw QueryCompilationErrors.createTableColumnTypesOptionColumnNotFoundInSchemaError(
-          col, schema)
+        throw QueryCompilationErrors
+          .createTableColumnTypesOptionColumnNotFoundInSchemaError(col, schema)
       }
     }
 
@@ -881,14 +895,24 @@ object JdbcUtils extends Logging with SQLConfHelper {
 
     val insertStmt = getInsertStatement(table, rddSchema, tableSchema, isCaseSensitive, dialect)
     val repartitionedDF = options.numPartitions match {
-      case Some(n) if n <= 0 => throw QueryExecutionErrors.invalidJdbcNumPartitionsError(
-        n, JDBCOptions.JDBC_NUM_PARTITIONS)
+      case Some(n) if n <= 0 =>
+        throw QueryExecutionErrors.invalidJdbcNumPartitionsError(
+          n,
+          JDBCOptions.JDBC_NUM_PARTITIONS)
       case Some(n) if n < df.rdd.getNumPartitions => df.coalesce(n)
       case _ => df
     }
-    repartitionedDF.rdd.foreachPartition { iterator => savePartition(
-      getConnection, table, iterator, rddSchema, insertStmt, batchSize, dialect, isolationLevel,
-      options)
+    repartitionedDF.rdd.foreachPartition { iterator =>
+      savePartition(
+        getConnection,
+        table,
+        iterator,
+        rddSchema,
+        insertStmt,
+        batchSize,
+        dialect,
+        isolationLevel,
+        options)
     }
   }
 
@@ -902,8 +926,8 @@ object JdbcUtils extends Logging with SQLConfHelper {
       caseSensitive: Boolean,
       options: JdbcOptionsInWrite): Unit = {
     val dialect = JdbcDialects.get(options.url)
-    val strSchema = schemaString(
-      schema, caseSensitive, options.url, options.createTableColumnTypes)
+    val strSchema =
+      schemaString(schema, caseSensitive, options.url, options.createTableColumnTypes)
     val createTableOptions = options.createTableOptions
     // Create the table if the table does not exist.
     // To allow certain options to append when create a new table, which can be
@@ -914,7 +938,9 @@ object JdbcUtils extends Logging with SQLConfHelper {
     if (options.tableComment.nonEmpty) {
       try {
         executeStatement(
-          conn, options, dialect.getTableCommentQuery(tableName, options.tableComment))
+          conn,
+          options,
+          dialect.getTableCommentQuery(tableName, options.tableComment))
       } catch {
         case e: Exception =>
           logWarning("Cannot create JDBC table comment. The table comment will be ignored.")
@@ -945,8 +971,10 @@ object JdbcUtils extends Logging with SQLConfHelper {
     val dialect = JdbcDialects.get(options.url)
     val metaData = conn.getMetaData
     if (changes.length == 1) {
-      executeStatement(conn, options, dialect.alterTable(tableName, changes,
-        metaData.getDatabaseMajorVersion)(0))
+      executeStatement(
+        conn,
+        options,
+        dialect.alterTable(tableName, changes, metaData.getDatabaseMajorVersion)(0))
     } else {
       if (!metaData.supportsTransactions) {
         throw QueryExecutionErrors.transactionUnsupportedByJdbcServerError()
@@ -991,18 +1019,14 @@ object JdbcUtils extends Logging with SQLConfHelper {
       comment: String): Unit = {
     val dialect = JdbcDialects.get(options.url)
     try {
-      executeStatement(
-        conn, options, dialect.getSchemaCommentQuery(namespace, comment))
+      executeStatement(conn, options, dialect.getSchemaCommentQuery(namespace, comment))
     } catch {
       case e: Exception =>
         logWarning("Cannot create JDBC catalog comment. The catalog comment will be ignored.")
     }
   }
 
-  def removeNamespaceComment(
-      conn: Connection,
-      options: JDBCOptions,
-      namespace: String): Unit = {
+  def removeNamespaceComment(conn: Connection, options: JDBCOptions, namespace: String): Unit = {
     val dialect = JdbcDialects.get(options.url)
     try {
       executeStatement(conn, options, dialect.removeSchemaCommentQuery(namespace))
@@ -1032,7 +1056,9 @@ object JdbcUtils extends Logging with SQLConfHelper {
       properties: util.Map[String, String],
       options: JDBCOptions): Unit = {
     val dialect = JdbcDialects.get(options.url)
-    executeStatement(conn, options,
+    executeStatement(
+      conn,
+      options,
       dialect.createIndex(indexName, tableName, columns, columnsProperties, properties))
   }
 
@@ -1084,10 +1110,7 @@ object JdbcUtils extends Logging with SQLConfHelper {
   /**
    * Check if index exists in a table
    */
-  def checkIfIndexExists(
-      conn: Connection,
-      sql: String,
-      options: JDBCOptions): Boolean = {
+  def checkIfIndexExists(conn: Connection, sql: String, options: JDBCOptions): Boolean = {
     val statement = conn.createStatement
     try {
       statement.setQueryTimeout(options.queryTimeout)
@@ -1113,23 +1136,27 @@ object JdbcUtils extends Logging with SQLConfHelper {
     val supportedIndexTypeList = getSupportedIndexTypeList(catalogName)
 
     if (!properties.isEmpty) {
-      properties.asScala.foreach { case (k, v) =>
-        if (k.equals(SupportsIndex.PROP_TYPE)) {
-          if (containsIndexTypeIgnoreCase(supportedIndexTypeList, v)) {
-            indexType = s"USING $v"
+      properties.asScala.foreach {
+        case (k, v) =>
+          if (k.equals(SupportsIndex.PROP_TYPE)) {
+            if (containsIndexTypeIgnoreCase(supportedIndexTypeList, v)) {
+              indexType = s"USING $v"
+            } else {
+              throw new UnsupportedOperationException(
+                s"Index Type $v is not supported." +
+                  s" The supported Index Types are: ${supportedIndexTypeList.mkString(" AND ")}")
+            }
           } else {
-            throw new UnsupportedOperationException(s"Index Type $v is not supported." +
-              s" The supported Index Types are: ${supportedIndexTypeList.mkString(" AND ")}")
+            indexPropertyList.append(s"$k = $v")
           }
-        } else {
-          indexPropertyList.append(s"$k = $v")
-        }
       }
     }
     (indexType, indexPropertyList.toArray)
   }
 
-  def containsIndexTypeIgnoreCase(supportedIndexTypeList: Array[String], value: String): Boolean = {
+  def containsIndexTypeIgnoreCase(
+      supportedIndexTypeList: Array[String],
+      value: String): Boolean = {
     if (supportedIndexTypeList.isEmpty) {
       throw new UnsupportedOperationException(
         "Cannot specify 'USING index_type' in 'CREATE INDEX'")
@@ -1174,4 +1201,5 @@ object JdbcUtils extends Logging with SQLConfHelper {
       conn.close()
     }
   }
+
 }

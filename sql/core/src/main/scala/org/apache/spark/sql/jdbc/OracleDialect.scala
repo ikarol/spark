@@ -24,7 +24,6 @@ import org.apache.spark.sql.catalyst.util.DateTimeUtils
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 
-
 private case object OracleDialect extends JdbcDialect {
   private[jdbc] val BINARY_FLOAT = 100
   private[jdbc] val BINARY_DOUBLE = 101
@@ -41,7 +40,10 @@ private case object OracleDialect extends JdbcDialect {
   }
 
   override def getCatalystType(
-      sqlType: Int, typeName: String, size: Int, md: MetadataBuilder): Option[DataType] = {
+      sqlType: Int,
+      typeName: String,
+      size: Int,
+      md: MetadataBuilder): Option[DataType] = {
     sqlType match {
       case Types.NUMERIC =>
         val scale = if (null != md) md.build().getLong("scale") else 0L
@@ -60,40 +62,42 @@ private case object OracleDialect extends JdbcDialect {
           case _ if scale == -127L => Option(DecimalType(DecimalType.MAX_PRECISION, 10))
           case _ => None
         }
-      case TIMESTAMPTZ if supportTimeZoneTypes
-        => Some(TimestampType) // Value for Timestamp with Time Zone in Oracle
+      case TIMESTAMPTZ if supportTimeZoneTypes =>
+        Some(TimestampType) // Value for Timestamp with Time Zone in Oracle
       case BINARY_FLOAT => Some(FloatType) // Value for OracleTypes.BINARY_FLOAT
       case BINARY_DOUBLE => Some(DoubleType) // Value for OracleTypes.BINARY_DOUBLE
       case _ => None
     }
   }
 
-  override def getJDBCType(dt: DataType): Option[JdbcType] = dt match {
-    // For more details, please see
-    // https://docs.oracle.com/cd/E19501-01/819-3659/gcmaz/
-    case BooleanType => Some(JdbcType("NUMBER(1)", java.sql.Types.BOOLEAN))
-    case IntegerType => Some(JdbcType("NUMBER(10)", java.sql.Types.INTEGER))
-    case LongType => Some(JdbcType("NUMBER(19)", java.sql.Types.BIGINT))
-    case FloatType => Some(JdbcType("NUMBER(19, 4)", java.sql.Types.FLOAT))
-    case DoubleType => Some(JdbcType("NUMBER(19, 4)", java.sql.Types.DOUBLE))
-    case ByteType => Some(JdbcType("NUMBER(3)", java.sql.Types.SMALLINT))
-    case ShortType => Some(JdbcType("NUMBER(5)", java.sql.Types.SMALLINT))
-    case StringType => Some(JdbcType("VARCHAR2(255)", java.sql.Types.VARCHAR))
-    case _ => None
-  }
+  override def getJDBCType(dt: DataType): Option[JdbcType] =
+    dt match {
+      // For more details, please see
+      // https://docs.oracle.com/cd/E19501-01/819-3659/gcmaz/
+      case BooleanType => Some(JdbcType("NUMBER(1)", java.sql.Types.BOOLEAN))
+      case IntegerType => Some(JdbcType("NUMBER(10)", java.sql.Types.INTEGER))
+      case LongType => Some(JdbcType("NUMBER(19)", java.sql.Types.BIGINT))
+      case FloatType => Some(JdbcType("NUMBER(19, 4)", java.sql.Types.FLOAT))
+      case DoubleType => Some(JdbcType("NUMBER(19, 4)", java.sql.Types.DOUBLE))
+      case ByteType => Some(JdbcType("NUMBER(3)", java.sql.Types.SMALLINT))
+      case ShortType => Some(JdbcType("NUMBER(5)", java.sql.Types.SMALLINT))
+      case StringType => Some(JdbcType("VARCHAR2(255)", java.sql.Types.VARCHAR))
+      case _ => None
+    }
 
-  override def compileValue(value: Any): Any = value match {
-    // The JDBC drivers support date literals in SQL statements written in the
-    // format: {d 'yyyy-mm-dd'} and timestamp literals in SQL statements written
-    // in the format: {ts 'yyyy-mm-dd hh:mm:ss.f...'}. For details, see
-    // 'Oracle Database JDBC Developer’s Guide and Reference, 11g Release 1 (11.1)'
-    // Appendix A Reference Information.
-    case stringValue: String => s"'${escapeSql(stringValue)}'"
-    case timestampValue: Timestamp => "{ts '" + timestampValue + "'}"
-    case dateValue: Date => "{d '" + dateValue + "'}"
-    case arrayValue: Array[Any] => arrayValue.map(compileValue).mkString(", ")
-    case _ => value
-  }
+  override def compileValue(value: Any): Any =
+    value match {
+      // The JDBC drivers support date literals in SQL statements written in the
+      // format: {d 'yyyy-mm-dd'} and timestamp literals in SQL statements written
+      // in the format: {ts 'yyyy-mm-dd hh:mm:ss.f...'}. For details, see
+      // 'Oracle Database JDBC Developer’s Guide and Reference, 11g Release 1 (11.1)'
+      // Appendix A Reference Information.
+      case stringValue: String => s"'${escapeSql(stringValue)}'"
+      case timestampValue: Timestamp => "{ts '" + timestampValue + "'}"
+      case dateValue: Date => "{d '" + dateValue + "'}"
+      case arrayValue: Array[Any] => arrayValue.map(compileValue).mkString(", ")
+      case _ => value
+    }
 
   override def isCascadingTruncateTable(): Option[Boolean] = Some(false)
 
@@ -106,8 +110,8 @@ private case object OracleDialect extends JdbcDialect {
    */
   override def getTruncateQuery(
       table: String,
-      cascade: Option[Boolean] = isCascadingTruncateTable)
-                               (implicit metadata: DatabaseMetaData): String = {
+      cascade: Option[Boolean] = isCascadingTruncateTable)(implicit
+      metadata: DatabaseMetaData): String = {
     cascade match {
       case Some(true) => s"TRUNCATE TABLE $table CASCADE"
       case _ => s"TRUNCATE TABLE $table"
@@ -123,16 +127,17 @@ private case object OracleDialect extends JdbcDialect {
 
   // see https://docs.oracle.com/cd/B28359_01/server.111/b28286/statements_3001.htm#SQLRF01001
   override def getUpdateColumnTypeQuery(
-    tableName: String,
-    columnName: String,
-    newDataType: String): String =
+      tableName: String,
+      columnName: String,
+      newDataType: String): String =
     s"ALTER TABLE $tableName MODIFY ${quoteIdentifier(columnName)} $newDataType"
 
   override def getUpdateColumnNullabilityQuery(
-    tableName: String,
-    columnName: String,
-    isNullable: Boolean): String = {
+      tableName: String,
+      columnName: String,
+      isNullable: Boolean): String = {
     val nullable = if (isNullable) "NULL" else "NOT NULL"
     s"ALTER TABLE $tableName MODIFY ${quoteIdentifier(columnName)} $nullable"
   }
+
 }
