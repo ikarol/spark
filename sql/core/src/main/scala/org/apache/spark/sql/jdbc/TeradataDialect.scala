@@ -20,6 +20,7 @@ package org.apache.spark.sql.jdbc
 import java.util.Locale
 
 import org.apache.spark.sql.types._
+import java.sql.DatabaseMetaData
 
 
 private case object TeradataDialect extends JdbcDialect {
@@ -47,7 +48,8 @@ private case object TeradataDialect extends JdbcDialect {
    */
   override def getTruncateQuery(
       table: String,
-      cascade: Option[Boolean] = isCascadingTruncateTable): String = {
+      cascade: Option[Boolean] = isCascadingTruncateTable)
+                               (implicit metadata: DatabaseMetaData): String = {
     s"DELETE FROM $table ALL"
   }
 

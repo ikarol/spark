@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql.jdbc
 
-import java.sql.{Date, Timestamp, Types}
+import java.sql.{DatabaseMetaData, Date, Timestamp, Types}
 import java.util.{Locale, TimeZone}
 
 import org.apache.spark.sql.catalyst.util.DateTimeUtils
@@ -106,7 +106,8 @@ private case object OracleDialect extends JdbcDialect {
    */
   override def getTruncateQuery(
       table: String,
-      cascade: Option[Boolean] = isCascadingTruncateTable): String = {
+      cascade: Option[Boolean] = isCascadingTruncateTable)
+                               (implicit metadata: DatabaseMetaData): String = {
     cascade match {
       case Some(true) => s"TRUNCATE TABLE $table CASCADE"
       case _ => s"TRUNCATE TABLE $table"
